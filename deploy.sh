@@ -80,16 +80,34 @@ if [[ ! "${TOTP_CODE}" =~ ^[0-9]{6}$ ]]; then
   exit 1
 fi
 
+# ── Source .env.local so sealed-env CLI sees SEALED_ENV_KEY etc.
+# The CLI doesn't auto-discover .env.local when invoked from a script
+# (different from interactive use). `set -a` exports every var defined
+# in the file; we scope this to a subshell so the master keys don't
+# leak into the child docker compose process below.
+if [[ ! -f .env.local ]]; then
+  echo "✗ .env.local not found in $(pwd) — copy it from the operator's laptop:"
+  echo "    scp ~/.../.env.local root@$(hostname):/opt/zentryx/status/.env.local"
+  exit 1
+fi
+
 # ── Mint the unseal token ────────────────────────────────────────
 echo "▸ Minting unseal token (TTL 60s, bound to ${DEPLOY_ID_SHORT})..."
-SEALED_ENV_UNSEAL_TOKEN="$(sealed-env unseal \
-  --file src/main/resources/.env.sealed \
-  --totp "${TOTP_CODE}" \
-  --deploy-id "${DEPLOY_ID}" \
-  --ttl 60)"
+SEALED_ENV_UNSEAL_TOKEN="$(
+  set -a
+  # shellcheck disable=SC1091
+  . ./.env.local
+  set +a
+  sealed-env unseal \
+    --file src/main/resources/.env.sealed \
+    --totp "${TOTP_CODE}" \
+    --deploy-id "${DEPLOY_ID}" \
+    --ttl 60 \
+    | grep -oE 'usl_[A-Za-z0-9._-]+' | head -1
+)"
 
 if [[ -z "${SEALED_ENV_UNSEAL_TOKEN}" ]]; then
-  echo "✗ unseal failed — check TOTP code and try again"
+  echo "✗ unseal failed — check TOTP code (rotates every 30s) and try again"
   exit 1
 fi
 
