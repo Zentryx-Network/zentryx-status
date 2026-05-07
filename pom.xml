@@ -29,7 +29,7 @@
 
     <properties>
         <java.version>21</java.version>
-        <sealed-env.version>0.1.0-alpha.2</sealed-env.version>
+        <sealed-env.version>0.1.0-alpha.4</sealed-env.version>
     </properties>
 
     <dependencies>

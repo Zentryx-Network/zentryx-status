@@ -16,6 +16,13 @@ target/
 *.war
 .mvn/
 
+# Node (sealed-env CLI installed locally lives here — runtime deps are Maven only)
+node_modules/
+package.json
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
 # IDE
 .idea/
 *.iml
@@ -33,11 +40,3 @@ data/
 *.h2.db
 *.mv.db
 *.trace.db
-
-# Added by sealed-env
-.env.local
-.env
-
-# Added by sealed-env
-.env.local
-.env
