@@ -1,0 +1,43 @@
+# Plaintext secrets — NEVER commit
+.env
+.env.local
+.env.*.local
+src/main/resources/.env
+src/main/resources/.env.local
+
+# OK to commit (encrypted)
+!.env.sealed
+!.env.example
+!src/main/resources/.env.sealed
+
+# Maven
+target/
+*.jar
+*.war
+.mvn/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local DB
+data/
+*.h2.db
+*.mv.db
+*.trace.db
+
+# Added by sealed-env
+.env.local
+.env
+
+# Added by sealed-env
+.env.local
+.env

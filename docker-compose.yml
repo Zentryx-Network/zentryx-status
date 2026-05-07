@@ -1,0 +1,38 @@
+# ─────────────────────────────────────────────────────────────────
+# zentryx-status · production compose
+#
+# Bound to 127.0.0.1 only — Caddy/nginx on the same host reverse
+# proxies https://status.zentryxnet.lat → 127.0.0.1:8090.
+# That keeps the management plane off the public internet (matches
+# the rest of the Zentryx hardening model).
+# ─────────────────────────────────────────────────────────────────
+
+services:
+  status:
+    build: .
+    image: zentryx-status:latest
+    container_name: zentryx-status
+    # Restart policy: on-failure (NOT unless-stopped). If the JVM exits
+    # because the unseal token is invalid/expired, we WANT it to stop
+    # and stay stopped — re-deploying requires fresh TOTP from a human.
+    # External monitor (uptimerobot / healthchecks.io) catches the gap.
+    restart: on-failure:3
+    environment:
+      # These are populated by ./deploy.sh at deploy time. The deploy
+      # script asks the operator for a TOTP code, mints a 60s JWS bound
+      # to the current commit sha, and exports both vars before docker
+      # compose up.
+      SEALED_ENV_UNSEAL_TOKEN: ${SEALED_ENV_UNSEAL_TOKEN}
+      SEALED_ENV_DEPLOY_ID:    ${SEALED_ENV_DEPLOY_ID}
+    ports:
+      - "127.0.0.1:8090:8090"
+    volumes:
+      - status_data:/app/data
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+volumes:
+  status_data:

@@ -1,0 +1,97 @@
+# ─────────────────────────────────────────────────────────────────
+# zentryx-status · Spring Boot config
+# ─────────────────────────────────────────────────────────────────
+# Secrets (RESEND_API_KEY, ALERT_DISCORD_WEBHOOK, etc.) live in
+# src/main/resources/.env.sealed and are loaded transparently by
+# sealed-env-spring-boot-starter at startup. The master key is
+# read from .env.local (dev) or the SEALED_ENV_KEY env var (CI/prod).
+# ─────────────────────────────────────────────────────────────────
+
+server:
+  port: 8090
+  shutdown: graceful
+
+spring:
+  application:
+    name: zentryx-status
+  jpa:
+    hibernate:
+      ddl-auto: update     # H2 file mode — schema migrations are overkill for a single-node service
+    open-in-view: false
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  datasource:
+    url: jdbc:h2:file:./data/status;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: zentryx
+    password: ${H2_PASSWORD}    # from .env.sealed
+
+# ── sealed-env (ENTERPRISE MODE) ─────────────────────────────────
+# Enterprise mode = each deploy requires a fresh TOTP-derived JWS
+# unseal token bound to a specific commit sha. Threat model:
+#
+#   • master key alone → useless without TOTP
+#   • TOTP secret alone → can't decrypt without master key
+#   • token leaked from CI logs → bound to deploy_id, expires in 60s
+#   • restart with stale token → service crash-loops until operator
+#     re-mints with fresh TOTP (intentional fail-safe)
+#
+# Runtime env vars expected:
+#   SEALED_ENV_UNSEAL_TOKEN   JWS minted by `sealed-env unseal --totp ...`
+#   SEALED_ENV_DEPLOY_ID      Commit sha the token is bound to
+#
+# Dev mode (no TOTP needed): set sealed-env.mode=basic and use SEALED_ENV_KEY.
+sealed-env:
+  enabled: true
+  mode: enterprise
+  file: classpath:.env.sealed
+
+# ── Targets the poller monitors ──────────────────────────────────
+# Edit this list to add/remove. Each entry is (name, url, expected
+# HTTP status code). The poller hits every target every 30 seconds.
+zentryx:
+  status:
+    poll-interval-ms: 30000     # how often to hit each target
+    timeout-ms: 8000            # per-request timeout
+    targets:
+      - name: zentryxnet-web
+        url: https://zentryxnet.lat/health
+        expect: 200
+      - name: zentryxnet-blog
+        url: https://zentryxnet.lat/blog
+        expect: 200
+      - name: speedtest-ping
+        url: https://speed.zentryxnet.lat/ping
+        expect: 204
+      - name: mail-https
+        url: https://mail.zentryxnet.lat/
+        expect: 200
+    alerts:
+      discord-webhook: ${ALERT_DISCORD_WEBHOOK}    # from .env.sealed
+      cooldown-minutes: 15                          # don't spam if a target keeps flapping
+    digest:
+      enabled: true
+      from: Zentryx Status <status@zentryxnet.lat>
+      to: ${DIGEST_TO}                              # from .env.sealed
+      resend-api-key: ${RESEND_API_KEY}             # from .env.sealed
+      cron: '0 0 9 * * MON'                         # 9:00 every Monday
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+  info:
+    git:
+      enabled: true
+
+logging:
+  level:
+    root: INFO
+    com.zentryx.status: DEBUG
+    org.springframework.web.reactive.function.client.ExchangeFunctions: WARN
+  pattern:
+    console: '%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n'

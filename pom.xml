@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.3.4</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>net.zentryx</groupId>
+    <artifactId>zentryx-status</artifactId>
+    <version>0.1.0</version>
+    <packaging>jar</packaging>
+    <name>zentryx-status</name>
+    <description>
+        Public status page service for Zentryx Network. Polls each
+        critical endpoint every 30s, persists checks in H2, exposes
+        a small REST API and pushes Discord alerts on state changes.
+
+        Built specifically as a real-world dogfood for sealed-env-
+        spring-boot-starter — secrets live encrypted in src/main/
+        resources/.env.sealed, decrypted at startup.
+    </description>
+
+    <properties>
+        <java.version>21</java.version>
+        <sealed-env.version>0.1.0-alpha.2</sealed-env.version>
+    </properties>
+
+    <dependencies>
+        <!-- Web + Actuator -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+            <!-- Only WebClient is used — non-blocking outbound HTTP for the poller -->
+        </dependency>
+
+        <!-- Persistence (H2 file-mode for single-node simplicity) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Validation for config records -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- DOGFOOD: read .env.sealed at startup, decrypt, expose as Environment props -->
+        <dependency>
+            <groupId>io.github.davidalmeidac</groupId>
+            <artifactId>sealed-env-spring-boot-starter</artifactId>
+            <version>${sealed-env.version}</version>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
